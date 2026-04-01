@@ -91,10 +91,10 @@
      ```
 
 - **Bukti:**  
-  (tambah screenshot container running)
-
----
-
+  - `evidence/images/status dockersebelum dan sesudah di start.png`
+  - `evidence/images/bukti setup docker tanpa sudo.png`
+  - `evidence/images/bukti docker & run berhasil.png`
+  - `evidence/images/bukti Verifikasi konten aplikasi.png`
 ## 4. Automation
 - **Masalah:**  
   Perlu backup log Nginx secara otomatis.
