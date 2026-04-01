@@ -95,36 +95,81 @@
   - `evidence/images/bukti setup docker tanpa sudo.png`
   - `evidence/images/bukti docker & run berhasil.png`
   - `evidence/images/bukti Verifikasi konten aplikasi.png`
-## 4. Automation
-- **Masalah:**  
-  Perlu backup log Nginx secara otomatis.
+## Soal 4: Backup Log Nginx
 
+Untuk soal ini, dibuat script `backup.sh` yang melakukan backup log Nginx ke folder `evidence/logs/`. Berikut bukti hasil backup:
+
+- File backup yang berhasil dibuat: `log-backup-2026-04-01.tar.gz`
+- Screenshot isi folder logs:
+
+![Soal 4: Backup Log Nginx](evidence/images/soal4_ls_logs_2026-04-01.png)
+
+## 5. Architecture Design (High Traffic Scenario)
+
+**Kasus:**  
+Aplikasi statis yang dijalankan di Docker Nginx tiba-tiba viral. CPU server mentok 100% dan database (yang akan dipasang) mulai lambat.
+
+### 5.1 Identifikasi Masalah
+- **Server tunggal:** Semua trafik web dan database ditangani satu server → bottleneck CPU & I/O.  
+- **Database:** Jika database ditambahkan di server yang sama, I/O akan makin lambat.  
+- **Scalability:** Arsitektur saat ini tidak scalable. Semua request masuk ke satu titik → single point of failure.
+
+### 5.2 Rancangan Arsitektur High Traffic
+
+#### a. Load Balancer
+- **Fungsi:** Mendistribusikan request ke beberapa server Nginx/Docker container.  
+- **Teknologi:** Nginx/HAProxy atau Cloud Load Balancer (AWS ELB, GCP LB).  
+- **Benefit:** Mencegah overload pada satu server, meningkatkan availability.
+
+#### b. Horizontal Scaling (Web Server)
+- Jalankan beberapa container Docker Nginx di server berbeda.  
+- **Strategi:** Docker Swarm atau Kubernetes untuk orchestrasi dan auto-scaling.  
+- **Benefit:** Trafik tinggi bisa ditangani lebih banyak container → CPU tidak mentok.
+
+#### c. Database Scaling
+- **Masalah:** Database lambat → harus dipisah dari web server.  
 - **Solusi:**  
-  1. Script backup `/var/log/nginx/` ke `/tmp/backup-logs/` setiap jam 2 pagi  
-     ```bash
-     #!/bin/bash
-     BACKUP_DIR="/tmp/backup-logs/$(date +%F)"
-     mkdir -p "$BACKUP_DIR"
-     cp -r /var/log/nginx/* "$BACKUP_DIR"
-     find /tmp/backup-logs/* -type d -mtime +7 -exec rm -rf {} \;
-     ```
-  2. Tambahkan cron job:
-     ```
-     0 2 * * * /path/to/backup_script.sh
-     ```
+  - Database Server terpisah (dedicated VM/container).  
+  - Scaling:  
+    - **Vertical:** Upgrade CPU/RAM.  
+    - **Horizontal:** Replikasi read-only (Master-Slave) untuk query baca.  
+  - Gunakan caching (Redis/Memcached) untuk mengurangi load DB.
 
-- **Bukti:**  
-  (tambah screenshot cron job & script output)
+#### d. Caching
+- **Fungsi:** Menyimpan response statis atau query populer agar web server & DB tidak overload.  
+- **Teknologi:** Redis, Varnish, CDN (Cloudflare/Akamai) untuk distribusi global.
 
----
+#### e. Auto-scaling & Monitoring
+- Monitoring untuk deteksi CPU/memory overload (Prometheus + Grafana).  
+- Auto-scale container/web server saat load naik → elastis terhadap trafik viral.
+### 5.3 Diagram Arsitektur
++-----------------+
+             |  Load Balancer  |
+             +--------+--------+
+                      |
+      +---------------+---------------+
+      |                               |
 
-## 5. Architecture Design
-- **Desain untuk 100.000 user/hari:**  
-  - Load Balancer di depan Nginx  
-  - Cluster Nginx / Web server  
-  - Database terdistribusi / sharding  
-  - CDN untuk konten statis  
-  - Auto-scaling server jika traffic tinggi
++------------------+ +------------------+
+| Nginx Docker VM1 | | Nginx Docker VM2 |
++------------------+ +------------------+
+| |
++---------------+---------------+
+|
++-----------------+
+| Database Server |
+| (MySQL/Postgres)|
++-----------------+
+|
++-----------------+
+| Cache (Redis)|
++-----------------+
 
-- **Bukti / Diagram:**  
-  (tambahkan diagram arsitektur jika ada)
+
+**Perbaikan utama:**  
+- Flow traffic jelas dari atas ke bawah.  
+- Horizontal scaling terlihat rapi, garis menyambung dengan benar.  
+- Tidak ada garis dobel atau spasi kosong yang bikin layout pecah.  
+- Bisa langsung dipaste di `REPORT.md` tanpa pecah di GitHub.  
+
+Kalau mau, aku bisa buat versi **lebih compact** tapi tetap rapi, sehingga diagramnya lebih kecil dan mudah dilihat di layar sempit. Mau aku buatkan versi itu juga?
