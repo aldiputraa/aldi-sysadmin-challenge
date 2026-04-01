@@ -29,11 +29,46 @@
 
 - **Solusi:**  
   1. Setup UFW: allow port 6622, 80, 8080  
-  2. Buat user baru  
-  3. Setup SSH Key Authentication & disable password auth
+     ```bash
+     sudo ufw reset
+     sudo ufw default deny incoming
+     sudo ufw default allow outgoing
+     sudo ufw allow 6622/tcp
+     sudo ufw allow 80/tcp
+     sudo ufw allow 8080/tcp
+     sudo ufw enable
+     ```
+  2. Buat user baru `aldi` dan tambahkan ke group sudo  
+     ```bash
+     sudo adduser aldi
+     sudo usermod -aG sudo aldi
+     ```
+  3. Setup SSH Key Authentication & disable password auth  
+     ```bash
+     ssh-keygen -t ed25519 -C "aldi@103.30.144.48"
+     mkdir -p ~/.ssh
+     cp /home/deploy/.ssh/id_ed25519 ~/.ssh/
+     cp /home/deploy/.ssh/id_ed25519.pub ~/.ssh/
+     chmod 700 ~/.ssh
+     chmod 600 ~/.ssh/id_ed25519
+     chmod 644 ~/.ssh/id_ed25519.pub
+     cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+     chmod 600 ~/.ssh/authorized_keys
+     chown -R aldi:aldi ~/.ssh
+     ```
+     - Nonaktifkan password login di `/etc/ssh/sshd_config`:
+       ```
+       PasswordAuthentication no
+       ```
+     - Restart SSH: `sudo systemctl restart ssh`
 
 - **Bukti:**  
-  (tambah screenshot nanti setelah implementasi)
+  - `evidence/images/adduser_aldi.png`  
+  - `evidence/images/User baru & sudo.png`  
+  - `evidence/images/Permission folder ~.ssh.png`  
+  - `evidence/images/SSH key-only login.png`  
+  - `evidence/images/ufw_before.png`  
+  - `evidence/images/ufw_status.png`  
 
 ---
 
@@ -43,7 +78,17 @@
 
 - **Solusi:**  
   1. Buat Dockerfile berbasis `nginx:alpine`  
-  2. Build image & jalankan container di port 8080
+     ```dockerfile
+     FROM nginx:alpine
+     COPY . /usr/share/nginx/html
+     EXPOSE 8080
+     CMD ["nginx", "-g", "daemon off;"]
+     ```
+  2. Build image & jalankan container:  
+     ```bash
+     docker build -t app-test /opt/app-test/
+     docker run -d -p 8080:80 app-test
+     ```
 
 - **Bukti:**  
   (tambah screenshot container running)
@@ -56,7 +101,17 @@
 
 - **Solusi:**  
   1. Script backup `/var/log/nginx/` ke `/tmp/backup-logs/` setiap jam 2 pagi  
-  2. Hapus file >7 hari otomatis (pakai cron job)
+     ```bash
+     #!/bin/bash
+     BACKUP_DIR="/tmp/backup-logs/$(date +%F)"
+     mkdir -p "$BACKUP_DIR"
+     cp -r /var/log/nginx/* "$BACKUP_DIR"
+     find /tmp/backup-logs/* -type d -mtime +7 -exec rm -rf {} \;
+     ```
+  2. Tambahkan cron job:
+     ```
+     0 2 * * * /path/to/backup_script.sh
+     ```
 
 - **Bukti:**  
   (tambah screenshot cron job & script output)
